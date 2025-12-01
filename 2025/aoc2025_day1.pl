@@ -33,7 +33,7 @@ direction_move_calc(D, C, I, C1, Add) :-
 crossed_zero_check(C, C1, Add) :-
 	(	% Must cross over 0, rather than start at 0
 		C \== 0,
-		% Ending on zero is checked later
+		% Ending on zero is checked in zero_inc - prevent double-count
 		C1 \== 0
 	->	Add = 1
 	;	Add = 0
