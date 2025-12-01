@@ -41,7 +41,6 @@ crossed_zero_check(C, C1, Add) :-
 
 state_next(s(C, Z, P2Z), D, Digits, s(C1, Z1, P2Z1)) :-
 	number_codes(I, Digits),
-	I100 is I mod 100,
 	% Handle complete wraparound
 	divmod(I, 100, Div100, I100),
 	% The final sub-100 move
