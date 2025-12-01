@@ -46,11 +46,10 @@ state_next(s(C, Z, P2Z), D, Digits, s(C1, Z1, P2Z1)) :-
 	divmod(I, 100, Div100, I100),
 	% The final sub-100 move
 	direction_move_calc(D, C, I100, C1, Add),
-	zero_inc(C1, AZ1),
-	Z = AZ1 + Z1,
-	zero_inc(C1, IncP2),
+	zero_inc(C1, Inc),
+	Z = Inc + Z1,
 	% Is terms rather than a calculation
-	P2Z = Div100 + Add + IncP2 + P2Z1.
+	P2Z = Div100 + Add + Inc + P2Z1.
 
 zero_inc(C1, Inc) :-
 	(	C1 is 0
