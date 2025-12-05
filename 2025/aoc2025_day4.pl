@@ -4,10 +4,10 @@
 
 day4(P1, P2) :-
 	once(phrase_from_file(diagram(pos(1, 1)), 'aoc2025_day4_input.txt')),
-	aggregate_all(count, forklift_accessible_paper(_), P1),
-	aggregate_all(count, paper(_), Papers),
+	goal_count(forklift_accessible_paper(_), P1),
+	goal_count(paper(_), Papers),
 	remove_accessible_papers,
-	aggregate_all(count, paper(_), Papers0),
+	goal_count(paper(_), Papers0),
 	% How many papers were removed
 	P2 is Papers - Papers0.
 
@@ -49,16 +49,57 @@ paper_adjacent(Pos) :-
 
 forklift_accessible_paper(Pos) :-
 	paper(Pos),
-	aggregate_all(count, paper_adjacent(Pos), Adjs),
-	Adjs < 4.
+	goal_max_count(paper_adjacent(Pos), 3, _).
+	% Too easy :-)
+	%aggregate_all(count, paper_adjacent(Pos), Adjs),
+	%Adjs < 4.
 
 remove_accessible_papers :-
-	(	forklift_accessible_paper(_)
-	->	forall(forklift_accessible_paper(Pos),
-			retract(paper(Pos))
-		),
-		% More papers might now be accessible to remove
+	goal_count(
+		(forklift_accessible_paper(Pos), retract(paper(Pos))),
+		Count
+	),
+	(	Count > 0
+	->	% More papers might now be accessible to remove
 		remove_accessible_papers
 	;	% No more papers can be removed
 		true
 	).
+
+% Nicely reusable code below
+
+% Fail fast, when Max is known
+goal_max_count(Goal, Max, Count) :-
+	CountTerm = c(0),
+	goal_max_count_(Goal, Max, CountTerm, Count).
+
+goal_max_count_(Goal, Max, CountTerm, _Count) :-
+	Goal,
+	arg(1, CountTerm, C),
+	(	C >= Max
+	->	% Fail fast
+		!,
+		fail
+	;	true
+	),
+	C1 is C + 1,
+	nb_setarg(1, CountTerm, C1),
+	% Try Goal again
+	fail.
+goal_max_count_(_Goal, _Max, CountTerm, Count) :-
+	arg(1, CountTerm, Count).
+
+% Simple count
+goal_count(Goal, Count) :-
+	CountTerm = c(0),
+	goal_count_(Goal, CountTerm, Count).
+
+goal_count_(Goal, CountTerm, _Count) :-
+	Goal,
+	arg(1, CountTerm, C),
+	C1 is C + 1,
+	nb_setarg(1, CountTerm, C1),
+	% Try Goal again
+	fail.
+goal_count_(_Goal, CountTerm, Count) :-
+	arg(1, CountTerm, Count).
