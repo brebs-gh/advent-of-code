@@ -5,8 +5,24 @@
 day8(P1, P2) :-
 	once(phrase_from_file(junctions(Ps), 'aoc2025_day8_input.txt')),
 	distance_pairs_sort(Ps, DPs),
-	part1(DPs, P1).
-	%part2(Ps, P2).
+	part1(DPs, P1),
+	% Setup
+	forall(member(_-pair(J1, J2), DPs),
+		% Don't need the Distance - just the order is sufficient
+		assertz(pairable_short(J1, J2))
+	),
+	forall(member(J, Ps),
+		assertz(unconnected_junction(J))
+	),
+	% Seed with the shortest pair
+	start_single_circuit,
+	connect_closest_unconnected_pairs,
+	% Retrieve the last 2
+	b_getval(last2, Last2),
+	maplist(junction_x_coord, Last2, [X1, X2]),
+	P2 is X1 * X2.
+
+junction_x_coord(p(X, _, _), X).
 
 part1(DPs, P1) :-
 	length(DPs10, 1000),
@@ -17,14 +33,40 @@ part1(DPs, P1) :-
 	circuit_sizes,
 	findall(S, circuit_size(S), Sizes),
 	msort(Sizes, SizesSort),
-	reverse(SizesSort, SizesSortR),
-	SizesSortR = [S1, S2, S3|_],
+	once(append(_, [S1, S2, S3], SizesSort)),
 	P1 is S1 * S2 * S3.
 
-select_same_circuit([], []) :- !.
-select_same_circuit(Ps, [P|PsC]) :-
-	select(P, Ps).
-	% TODO
+start_single_circuit :-
+	pairable_short(J1, J2),
+	retract(pairable_short(J1, J2)),
+	retract(unconnected_junction(J1)),
+	retract(unconnected_junction(J2)),
+	% Remove unwanted choicepoints
+	!.
+
+connect_closest_unconnected_pairs :-
+	(	pairable_short(J1, J2),
+		once(
+			(	unconnected_junction(J1)
+			->	Juncs = [J1, J2]
+			;	unconnected_junction(J2)
+			->	Juncs = [J2, J1]
+			)
+		)
+	->	% Connect this short pair
+		retract(pairable_short(J1, J2)),
+		Juncs = [JUnconnected, _JAlreadyConnected],
+		% Make the connection
+		retract(unconnected_junction(JUnconnected)),
+		% Remove unwanted choicepoints
+		!,
+		% Remember the last 2 connections
+		nb_setval(last2, Juncs),
+		% Loop
+		connect_closest_unconnected_pairs
+	;	% Ensure all the junctions have been connected
+		\+ unconnected_junction(_)
+	).
 
 junctions([P|Ps]) --> point(P), junctions_next(Ps).
 
@@ -39,6 +81,7 @@ digits([D|Ds]) --> [D], { between(0'0, 0'9, D) }, digits(Ds).
 digits([]) --> [].
 
 distance(p(X1, Y1, Z1), p(X2, Y2, Z2), Dist) :-
+	% Might as well include the sqrt - isn't needed for this puzzle
 	Dist is sqrt((X1 - X2)^2 + (Y1 - Y2)^2 + (Z1 - Z2)^2).
 
 distance_pair(Ps, Dist-pair(P1, P2)) :-
@@ -49,6 +92,14 @@ distance_pair(Ps, Dist-pair(P1, P2)) :-
 distance_pairs_sort(Ps, DPs) :-
 	findall(DP, distance_pair(Ps, DP), DPsU),
 	keysort(DPsU, DPs).
+
+% A variation on select/3 which only goes forward through the list
+select_forward(E, [H|T], F) :-
+    select_forward_(T, H, E, F).
+
+select_forward_(T, H, H, T).
+select_forward_([H|T], _, E, F) :-
+    select_forward_(T, H, E, F).
 
 circuit_sizes :-
 	(	% Take a short path
