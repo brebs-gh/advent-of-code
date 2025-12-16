@@ -2,13 +2,15 @@
 % https://adventofcode.com/2025/day/10
 % https://swi-prolog.discourse.group/t/advent-of-code-2025/9406
 
-% Runs in 2 seconds
+% Runs in 2.3 seconds
+
+% For part 2
+:- use_module(library(simplex)).
 
 day10(P1, P2) :-
 	once(phrase_from_file(machines(Ms), 'aoc2025_day10_input.txt')),
-	writeln(parsed),
-	part1(Ms, P1).
-	%part2(P2).
+	part1(Ms, P1),
+	part2(Ms, P2).
 
 machines([]) --> end_of_input.
 machines([M|Ms]) --> machine(M), [10], machines(Ms).
@@ -79,3 +81,44 @@ press_buttons([BI|BIs], Cs) :-
 	toggle_next(C, Next),
 	setarg(1, TC, Next),
 	press_buttons(BIs, Cs).
+
+part2(Ms, P2) :-
+	maplist(part2_button_presses, Ms, Ps),
+	sum_list(Ps, P2),
+	!.
+
+part2_button_presses(m(_, b(Bs), j(Js)), Presses) :-
+	gen_state(S),
+	same_length(Bs, Ps),
+	% Get symbols for library(simplex) to use
+	maplist(p_sym, Ps, Syms),
+	constrain_to_integers(Syms, S, S1),
+	part2_joltages(Js, Bs, 0, Syms, S1, S2),
+	minimize(Syms, S2, SF),
+	% Is the minimum
+	objective(SF, Presses).
+
+part2_joltages([], _, _, _, S, S).
+part2_joltages([J|Js], Bs, I, Ps, S, SF) :-
+	% Find the buttons which, when pressed, increment J
+	button_increments_joltage(Bs, Ps, I, SL),
+	constraint(SL = J, S, S1),
+	I1 is I + 1,
+	part2_joltages(Js, Bs, I1, Ps, S1, SF).
+
+button_increments_joltage([], [], _, []).
+button_increments_joltage([B|Bs], [P|Ps], I, SL) :-
+	(	member(I, B)
+	->	SL = [P|SL0]
+	;	SL = SL0
+	),
+	button_increments_joltage(Bs, Ps, I, SL0).
+
+% Just need a unique symbol, don't need to identify them later
+p_sym(_P, Sym) :-
+	gensym(a, Sym).
+
+% library(simplex) needs to be told to use integers
+constrain_to_integers(Syms) --> foldl(constrain_to_integer, Syms).
+
+constrain_to_integer(Sym) --> constraint(integral(Sym)).
