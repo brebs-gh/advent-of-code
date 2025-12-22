@@ -89,9 +89,9 @@ part2(Ms, P2) :-
 
 part2_button_presses(m(_, b(Bs), j(Js)), Presses) :-
 	same_length(Bs, Ps),
+	maplist(ge0_clpq, Ps),
 	part2_joltages(Js, Bs, 0, Ps),
 	plus_list_clp(Ps, Expr),
-	maplist(ge0_clpr, Ps),
 	bb_inf(Ps, Expr, Presses).
 
 plus_list_clp([H|T], Expr) :-
@@ -104,9 +104,8 @@ part2_joltages([], _, _, _).
 part2_joltages([J|Js], Bs, I, Ps) :-
 	% Find the buttons which, when pressed, increment J
 	button_increments_joltage(Bs, Ps, I, SL),
-	maplist(ge0_clpr, SL),
 	% Not needed
-	%maplist(lte_clpr(J), SL),
+	%maplist(lte_clpq(J), SL),
 	plus_list_clp(SL, Expr),
 	{ Expr = J },
 	I1 is I + 1,
@@ -120,8 +119,8 @@ button_increments_joltage([B|Bs], [P|Ps], I, SL) :-
 	),
 	button_increments_joltage(Bs, Ps, I, SL0).
 
-ge0_clpr(X) :-
+ge0_clpq(X) :-
 	{ X >= 0 }.
 
-lte_clpr(I, X) :-
+lte_clpq(I, X) :-
 	{ X =< I }.
