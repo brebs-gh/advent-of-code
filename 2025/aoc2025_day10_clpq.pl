@@ -2,10 +2,10 @@
 % https://adventofcode.com/2025/day/10
 % https://swi-prolog.discourse.group/t/advent-of-code-2025/9406
 
-% Runs in 3.3 seconds
+% Takes 1.9 seconds
 
-% For part 2
-:- use_module(library(simplex)).
+% Using bb_inf in clpq
+:- use_module(library(clpq)).
 
 day10(P1, P2) :-
 	once(phrase_from_file(machines(Ms), 'aoc2025_day10_input.txt')),
@@ -88,23 +88,29 @@ part2(Ms, P2) :-
 	!.
 
 part2_button_presses(m(_, b(Bs), j(Js)), Presses) :-
-	gen_state(S),
 	same_length(Bs, Ps),
-	% Get symbols for library(simplex) to use
-	maplist(p_sym, Ps, Syms),
-	constrain_to_naturals(Syms, S, S1),
-	part2_joltages(Js, Bs, 0, Syms, S1, S2),
-	minimize(Syms, S2, SF),
-	% Is the minimum
-	objective(SF, Presses).
+	part2_joltages(Js, Bs, 0, Ps),
+	plus_list_clp(Ps, Expr),
+	maplist(ge0_clpr, Ps),
+	bb_inf(Ps, Expr, Presses).
 
-part2_joltages([], _, _, _, S, S).
-part2_joltages([J|Js], Bs, I, Ps, S, SF) :-
+plus_list_clp([H|T], Expr) :-
+	foldl(plus_list_clp_, T, H, Expr).
+
+% Reversed, to produce A+B+C neatly
+plus_list_clp_(X, Y, Y + X).
+
+part2_joltages([], _, _, _).
+part2_joltages([J|Js], Bs, I, Ps) :-
 	% Find the buttons which, when pressed, increment J
 	button_increments_joltage(Bs, Ps, I, SL),
-	constraint(SL = J, S, S1),
+	maplist(ge0_clpr, SL),
+	% Not needed
+	%maplist(lte_clpr(J), SL),
+	plus_list_clp(SL, Expr),
+	{ Expr = J },
 	I1 is I + 1,
-	part2_joltages(Js, Bs, I1, Ps, S1, SF).
+	part2_joltages(Js, Bs, I1, Ps).
 
 button_increments_joltage([], [], _, []).
 button_increments_joltage([B|Bs], [P|Ps], I, SL) :-
@@ -114,12 +120,8 @@ button_increments_joltage([B|Bs], [P|Ps], I, SL) :-
 	),
 	button_increments_joltage(Bs, Ps, I, SL0).
 
-% Just need a unique symbol, don't need to identify them later
-p_sym(_P, Sym) :-
-	gensym(a, Sym).
+ge0_clpr(X) :-
+	{ X >= 0 }.
 
-% library(simplex) needs to be told to use integers
-constrain_to_naturals(Syms) --> foldl(constrain_to_natural, Syms).
-
-% Am explicitly specifying >= 0 as per advice: https://eu.swi-prolog.org/pldoc/man?section=simplex
-constrain_to_natural(Sym) --> constraint(integral(Sym)), constraint([Sym] >= 0).
+lte_clpr(I, X) :-
+	{ X =< I }.
